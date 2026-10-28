@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de Gráficas: s(t), v(t), a(t)</title>
+<style>
+  :root{--merino:#F5EEDD;--rock:#84B3CE;--venice:#16587B;--green:#2E8B57;--red:#D9534F;--amber:#B7791F}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--merino);color:var(--venice)}
+  h1,h2,h3,.serif{font-family:"Playfair Display",Georgia,"Times New Roman",serif}
+  .wrap{max-width:1300px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+  header{background:var(--venice);color:var(--merino);padding:24px;border-radius:18px;text-align:center;border:2px solid var(--rock);box-shadow:0 10px 25px rgba(0,0,0,.15)}
+  header h1{margin:0 0 6px;font-size:clamp(28px,5vw,46px)}
+  header p{margin:0;font-style:italic;font-size:18px;opacity:.9}
+  .grid{display:grid;grid-template-columns:1fr;gap:24px}
+  @media(min-width:1024px){.grid{grid-template-columns:340px 1fr}.side{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto}}
+  .card{background:#fff;border:2px solid var(--rock);border-radius:18px;padding:20px;box-shadow:0 6px 16px rgba(0,0,0,.08);min-width:0}
+  .card h2{margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--rock);font-size:22px}
+  label{display:block;font-size:12.5px;font-weight:600;margin-bottom:4px}
+  .field{width:100%;padding:9px;border:2px solid var(--rock);border-radius:8px;background:var(--merino);color:var(--venice);font-weight:500;font-size:14px;font-family:inherit}
+  .field:focus{outline:none;box-shadow:0 0 0 2px var(--venice)}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .stack{display:flex;flex-direction:column;gap:14px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hint{font-size:11.5px;color:#64748b;margin:4px 0 0}
+  .panel{background:var(--merino);border:1px solid var(--rock);border-radius:12px;padding:10px}
+  button{cursor:pointer;border:0;border-radius:8px;font-weight:700;font-family:inherit}
+  .btn{width:100%;background:var(--venice);color:var(--merino);padding:12px;font-size:15px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+  .btn.alt{background:var(--rock);color:var(--venice);box-shadow:none;padding:10px;font-size:13.5px}
+  .btn:hover,.dl:hover{opacity:.9}
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .dl{background:var(--rock);color:var(--venice);padding:8px;font-size:12px}
+  .err{color:#dc2626;font-size:13px;font-weight:600;display:none;margin:0}
+  .warn{display:none;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:10px;padding:8px 10px;font-size:12px}
+  .warn ul{margin:0;padding-left:16px}
+  .main{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+  /* Contexto del fenómeno */
+  .ctitle{font-size:18px;font-weight:700;margin-bottom:6px}
+  .card p{margin:6px 0;font-size:14px;line-height:1.5;color:#1e3a4c}
+  .ctx-grid{display:grid;grid-template-columns:1fr;gap:14px;margin:10px 0}
+  @media(min-width:900px){.ctx-grid{grid-template-columns:1fr 1.25fr 1.25fr}}
+  .ctx-grid>div{background:var(--merino);border:1px solid var(--rock);border-radius:12px;padding:12px;min-width:0}
+  .card h4{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--venice)}
+  .card ul{margin:4px 0;padding-left:18px;font-size:13.5px;line-height:1.5;color:#1e3a4c}
+  .checks{list-style:none;padding:0!important;display:flex;flex-direction:column;gap:5px}
+  .checks li{padding:7px 10px;border-radius:8px;font-size:13px;display:flex;gap:8px;line-height:1.4}
+  .checks li.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+  .checks li.bad{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+  .checks li.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+  .checks li b{white-space:nowrap}
+
+  /* Resultados y procesos */
+  .results{background:var(--venice);color:var(--merino);border:2px solid var(--rock);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+  .results h3{margin:0;font-size:18px;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:6px}
+  .cols3{display:grid;grid-template-columns:1fr;gap:10px}
+  @media(min-width:768px){.cols3{grid-template-columns:repeat(3,1fr)}}
+  .cols2{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:1100px){.cols2{grid-template-columns:1fr 1fr}}
+  .cols4{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:12.5px}
+  @media(min-width:768px){.cols4{grid-template-columns:repeat(4,1fr)}}
+  .box{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px;font-size:14px;min-width:0}
+  .box small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.7;font-family:Inter,system-ui,sans-serif}
+  .box b{display:block;margin:3px 0;word-break:break-word}
+  .box span{display:block;font-size:12px;opacity:.9;font-family:Inter,system-ui,sans-serif}
+  .mini{background:rgba(0,0,0,.15);border-radius:8px;padding:8px}
+  .steps{background:rgba(0,0,0,.18);border-radius:12px;padding:12px;font-size:13px;display:flex;flex-direction:column;gap:5px;min-width:0}
+  .steps .t{font-weight:700;font-family:Inter,system-ui,sans-serif;font-size:14.5px;margin-bottom:2px}
+  .steps .ln{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-word;line-height:1.45}
+  .steps .h{font-family:Inter,system-ui,sans-serif;font-weight:600;margin-top:5px;color:#cfe6f3}
+  .steps .ind{padding-left:14px}
+  .steps .note{font-family:Inter,system-ui,sans-serif;font-size:11.5px;opacity:.85;font-style:italic;padding-left:26px;line-height:1.35}
+  .steps .res{color:#fde68a;font-weight:700}
+  .steps .ok{color:#86efac}
+  .steps .bad{color:#fca5a5}
+
+  /* Gráficas */
+  .plot{position:relative;width:100%}
+  .plot svg{width:100%;height:auto;display:block}
+  .tip{position:absolute;pointer-events:none;background:var(--venice);color:#fff;font-size:12px;padding:5px 8px;border-radius:6px;white-space:nowrap;display:none;transform:translate(-50%,-130%)}
+  .cap{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12.5px;color:#1e3a4c;line-height:1.4;padding:8px 10px;background:var(--merino);border-radius:10px;border:1px solid var(--rock)}
+  .cap>span{display:inline-flex;align-items:center;gap:6px}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:3px;background:var(--c);flex:none}
+  .sw.ln{height:0;width:20px;border-radius:0;background:none;border-top:3px dashed var(--c)}
+  .sw.bar{width:5px;height:16px;border-radius:1px}
+  .sw.out{background:none;border:2px dashed var(--c)}
+  .interp p{margin:8px 0}
+  .interp .pill{display:inline-block;color:#fff;border-radius:999px;padding:1px 10px;font-size:12.5px;font-weight:700;margin-right:6px}
+  .keys li{margin:3px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Generador de Gráficas</h1>
+    <p>La derivada y la integral de la velocidad en un fenómeno real: s(t) · v(t) · a(t)</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- Controles -->
+    <aside class="card stack side">
+      <h2 class="serif" style="margin-bottom:0">⚙️ Parámetros</h2>
+
+      <div>
+        <label for="model">Fenómeno o modelo</label>
+        <select id="model" class="field">
+          <optgroup label="Fenómenos reales">
+            <option value="bus">🚌 Bus de TransMilenio entre estaciones</option>
+            <option value="sprint">🏃 Carrera de 100 m planos</option>
+            <option value="sky">🪂 Caída libre de un paracaidista</option>
+          </optgroup>
+          <optgroup label="Práctica matemática">
+            <option value="mruv">MRUV: v(t) = 5 + 2t</option>
+            <option value="cubica">Cúbica: v(t) = 3t² − 12t + 9</option>
+            <option value="armonica">Armónica: v(t) = 5cos(t)</option>
+          </optgroup>
+          <option value="custom">✏️ Personalizada</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="expr">v(t) = (velocidad en m/s)</label>
+        <input id="expr" class="field mono" value="0.9*t - 0.015*t^2" autocomplete="off" spellcheck="false">
+        <p class="hint">Variable <code>t</code>. Operadores <code>+ − * / ^</code>. Funciones <code>sin cos tan exp sqrt abs ln tanh</code>, constantes <code>pi</code> y <code>e</code>. Se acepta <code>2t</code> y la coma decimal (<code>0,5t</code>).</p>
+      </div>
+
+      <div class="two">
+        <div><label for="s0">s₀ posición inicial (m)</label><input id="s0" type="number" step="0.5" value="0" class="field"></div>
+        <div><label for="tmax">t_max dominio (s)</label><input id="tmax" type="number" min="0.5" max="100" step="0.5" value="60" class="field"></div>
+        <div><label for="tau1">τ₁ análisis (s)</label><input id="tau1" type="number" step="0.1" value="0" class="field"></div>
+        <div><label for="tau2">τ₂ análisis (s)</label><input id="tau2" type="number" step="0.1" value="30" class="field"></div>
+      </div>
+
+      <div class="two">
+        <div class="panel"><label for="tini">⏱ Tiempo inicial (s)</label><input id="tini" type="number" step="0.1" min="0" value="0" class="field"></div>
+        <div class="panel"><label for="tfin">⏱ Tiempo final (s)</label><input id="tfin" type="number" step="0.1" min="0" value="60" class="field"></div>
+      </div>
+      <button id="play" class="btn">▶ Reproducir</button>
+      <div class="hint" style="text-align:center;margin:0">Instante actual: <b id="tLabel" class="mono">0.00 s</b></div>
+
+      <button id="gen" class="btn alt">📊 Recalcular todo</button>
+      <div class="three">
+        <button class="dl" data-dl="plotS" data-name="posicion">⬇ s(t)</button>
+        <button class="dl" data-dl="plotV" data-name="velocidad">⬇ v(t)</button>
+        <button class="dl" data-dl="plotA" data-name="aceleracion">⬇ a(t)</button>
+      </div>
+      <div id="warn" class="warn"></div>
+      <p id="err" class="err"></p>
+    </aside>
+
+    <main class="main">
+
+      <section class="card" id="ctx"></section>
+
+      <section class="results">
+        <h3 class="serif">🔍 Ecuaciones, procesos y verificación</h3>
+        <div class="cols3 mono">
+          <div class="box"><small>Función original f = v(t)</small><b id="eqV" style="color:#a7f3d0"></b><span id="resV"></span></div>
+          <div class="box"><small>Tasa de cambio f′ = a(t)</small><b id="eqA" style="color:#fde68a"></b><span id="resA"></span></div>
+          <div class="box"><small>Función acumulada ∫f = s(t)</small><b id="eqS" style="color:#a5f3fc"></b><span id="resS"></span></div>
+        </div>
+        <div class="cols2">
+          <div class="steps" id="dSteps"></div>
+          <div class="steps" id="iSteps"></div>
+        </div>
+        <div class="cols4">
+          <div class="mini">Δv en [τ₁, τ₂]: <b id="rDv"></b></div>
+          <div class="mini">a promedio: <b id="rAv"></b></div>
+          <div class="mini">Desplazamiento: <b id="rDs"></b></div>
+          <div class="mini">Distancia total: <b id="rDt"></b></div>
+        </div>
+      </section>
+
+      <section class="card"><div id="plotS" class="plot"></div><div class="cap" id="capS"></div></section>
+      <section class="card"><div id="plotV" class="plot"></div><div class="cap" id="capV"></div></section>
+      <section class="card"><div id="plotA" class="plot"></div><div class="cap" id="capA"></div></section>
+
+      <section class="card interp" id="interp"></section>
+    </main>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/* =====================================================================
+   1. ÁLGEBRA SIMBÓLICA: análisis, derivada, integral, evaluación y texto
+   ===================================================================== */
+const FUNCS = {
+  sin:Math.sin, cos:Math.cos, tan:Math.tan, asin:Math.asin, acos:Math.acos, atan:Math.atan,
+  sinh:Math.sinh, cosh:Math.cosh, tanh:Math.tanh, exp:Math.exp, sqrt:Math.sqrt, abs:Math.abs,
+  ln:Math.log, log:Math.log10, floor:Math.floor, ceil:Math.ceil, sign:Math.sign
+};
+const CONSTS = { pi:Math.PI, e:Math.E };
+
+const NUM = (v, name) => name ? { n:'num', v, name } : { n:'num', v };
+const VAR = { n:'var' };
+const plain = x => x.n === 'num' && !x.name;
+const isNum = (x, v) => plain(x) && (v === undefined || x.v === v);
+
+function frac(x) {
+  for (let q = 2; q <= 24; q++) { const p = Math.round(x * q); if (Math.abs(x * q - p) < 1e-9) return [p, q]; }
+  return null;
+}
+function neg(a) {
+  if (plain(a)) return NUM(-a.v);
+  if (a.n === 'neg') return a.a;
+  if (a.n === 'mul' && plain(a.a)) return { n:'mul', a:NUM(-a.a.v), b:a.b };
+  return { n:'neg', a };
+}
+// ¿el término empieza con signo negativo? (para escribir "x − y" en vez de "x + (−y)")
+function negLead(n) {
+  if (n.n === 'num') return !n.name && n.v < 0;
+  if (n.n === 'neg') return true;
+  if (n.n === 'mul') return plain(n.a) && n.a.v < 0;
+  if (n.n === 'div') return negLead(n.a);
+  return false;
+}
+function flip(n) {
+  if (n.n === 'num') return NUM(-n.v);
+  if (n.n === 'neg') return n.a;
+  if (n.n === 'mul') return { n:'mul', a:NUM(-n.a.v), b:n.b };
+  if (n.n === 'div') return { n:'div', a:flip(n.a), b:n.b };
+  return n;
+}
+// c·x con el coeficiente simplificado (fracción si es "bonita", decimal si no)
+function coef(c, x) {
+  c = Number(c.toPrecision(12));
+  if (Math.abs(c) < 1e-14) return NUM(0);
+  if (x.n === 'neg') return coef(-c, x.a);
+  if (x.n === 'mul' && plain(x.a)) return coef(c * x.a.v, x.b);
+  if (x.n === 'div' && plain(x.b)) return coef(c / x.b.v, x.a);
+  if (c === 1) return x;
+  if (c === -1) return neg(x);
+  if (Number.isInteger(c)) return { n:'mul', a:NUM(c), b:x };
+  const fr = frac(c), terminating = Math.abs(c - Number(c.toFixed(4))) < 1e-12;
+  if (fr && ((fr[1] <= 4 && Math.abs(fr[0]) === 1) || !terminating)) {
+    const [p, q] = fr, d = NUM(q);
+    if (p === 1) return { n:'div', a:x, b:d };
+    if (p === -1) return neg({ n:'div', a:x, b:d });
+    return { n:'div', a:{ n:'mul', a:NUM(p), b:x }, b:d };
+  }
+  return { n:'mul', a:NUM(c), b:x };
+}
+function add(a, b) {
+  if (plain(a) && plain(b)) return NUM(a.v + b.v);
+  if (isNum(a, 0)) return b; if (isNum(b, 0)) return a;
+  return { n:'add', a, b };
+}
+function sub(a, b) {
+  if (plain(a) && plain(b)) return NUM(a.v - b.v);
+  if (isNum(b, 0)) return a; if (isNum(a, 0)) return neg(b);
+  if (negLead(b)) return add(a, flip(b));
+  return { n:'sub', a, b };
+}
+function mul(a, b) {
+  if (plain(a) && plain(b)) return NUM(a.v * b.v);
+  if (isNum(a, 0) || isNum(b, 0)) return NUM(0);
+  if (isNum(a, 1)) return b; if (isNum(b, 1)) return a;
+  if (isNum(a, -1)) return neg(b); if (isNum(b, -1)) return neg(a);
+  if (plain(b) && !plain(a)) return mul(b, a);
+  if (plain(a)) {
+    if (b.n === 'neg') return coef(-a.v, b.a);
+    if (b.n === 'mul' && plain(b.a)) return coef(a.v * b.a.v, b.b);
+    if (b.n === 'div' && plain(b.b)) {
+      const x = b.a;
+      if (x.n === 'mul' && plain(x.a)) return coef(a.v * x.a.v / b.b.v, x.b);
+      return coef(a.v / b.b.v, x);
+    }
+    if (b.n === 'div' && plain(b.a)) return div(NUM(a.v * b.a.v), b.b);
+  } else {
+    if (b.n === 'neg') return neg(mul(a, b.a));
+    if (a.n === 'neg') return neg(mul(a.a, b));
+  }
+  return { n:'mul', a, b };
+}
+function div(a, b) {
+  if (plain(a) && plain(b) && b.v !== 0) return NUM(a.v / b.v);
+  if (isNum(a, 0)) return NUM(0); if (isNum(b, 1)) return a;
+  if (a.n === 'div' && plain(a.b) && plain(b)) return div(a.a, NUM(a.b.v * b.v));
+  if (plain(b) && b.v !== 0) {
+    if (a.n === 'mul' && plain(a.a)) return coef(a.a.v / b.v, a.b);
+  }
+  return { n:'div', a, b };
+}
+function pow(a, b) {
+  if (isNum(b, 0)) return NUM(1); if (isNum(b, 1)) return a;
+  if (plain(a) && plain(b)) return NUM(Math.pow(a.v, b.v));
+  return { n:'pow', a, b };
+}
+function fn(f, a) {
+  if (f === 'ln' && a.n === 'num' && a.name === 'e') return NUM(1);
+  return { n:'fn', f, a };
+}
+
+/* --- Análisis sintáctico (precedencia, multiplicación implícita, unicode, coma decimal) --- */
+function parse(src) {
+  src = src.replace(/(\d),(\d)/g, '$1.$2').replace(/−/g, '-').replace(/[×·]/g, '*').replace(/÷/g, '/')
+           .replace(/π/g, ' pi ').replace(/²/g, '^2').replace(/³/g, '^3');
+  const toks = [];
+  const re = /(?:(\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+)|([A-Za-z_]\w*)|(\*\*|[+\-*\/^(),]))/y;
+  let pos = 0; src = src.trim();
+  if (!src) throw new Error('la expresión está vacía');
+  while (pos < src.length) {
+    if (/\s/.test(src[pos])) { pos++; continue; }
+    re.lastIndex = pos;
+    const m = re.exec(src);
+    if (!m) throw new Error('carácter no válido "' + src[pos] + '" (posición ' + (pos + 1) + ')');
+    pos = re.lastIndex;
+    if (m[1] !== undefined) toks.push({ k:'num', v:parseFloat(m[1]) });
+    else if (m[2] !== undefined) toks.push({ k:'id', v:m[2].toLowerCase() });
+    else toks.push({ k:'op', v: m[3] === '**' ? '^' : m[3] });
+  }
+  let i = 0;
+  const peek = () => toks[i];
+  const isOp = v => peek() && peek().k === 'op' && peek().v === v;
+  const expect = v => { if (!isOp(v)) throw new Error('se esperaba "' + v + '"'); i++; };
+  function expr() {
+    let l = term();
+    while (isOp('+') || isOp('-')) { const op = toks[i++].v, r = term(); l = op === '+' ? add(l, r) : sub(l, r); }
+    return l;
+  }
+  function term() {
+    let l = unary();
+    for (;;) {
+      if (isOp('*') || isOp('/')) { const op = toks[i++].v, r = unary(); l = op === '*' ? mul(l, r) : div(l, r); }
+      else if (peek() && (peek().k === 'num' || peek().k === 'id' || isOp('('))) { l = mul(l, power()); }
+      else break;
+    }
+    return l;
+  }
+  function unary() {
+    if (isOp('-')) { i++; return neg(unary()); }
+    if (isOp('+')) { i++; return unary(); }
+    return power();
+  }
+  function power() {
+    const b = atom();
+    if (isOp('^')) { i++; return pow(b, unary()); }
+    return b;
+  }
+  function atom() {
+    const tk = toks[i++];
+    if (!tk) throw new Error('la expresión termina de forma inesperada');
+    if (tk.k === 'num') return NUM(tk.v);
+    if (tk.k === 'id') {
+      if (tk.v === 't') return VAR;
+      if (tk.v in CONSTS) return NUM(CONSTS[tk.v], tk.v);
+      if (tk.v in FUNCS) { expect('('); const a = expr(); expect(')'); return fn(tk.v, a); }
+      throw new Error('"' + tk.v + '" no es una función ni una constante conocida (usa t como variable)');
+    }
+    if (tk.v === '(') { const e = expr(); expect(')'); return e; }
+    throw new Error('símbolo inesperado "' + tk.v + '"');
+  }
+  const ast = expr();
+  if (i < toks.length) throw new Error('sobra texto al final de la expresión');
+  return ast;
+}
+
+/* --- Evaluación --- */
+function cmp(n) {
+  switch (n.n) {
+    case 'num': { const v = n.v; return () => v; }
+    case 'var': return t => t;
+    case 'neg': { const a = cmp(n.a); return t => -a(t); }
+    case 'add': { const a = cmp(n.a), b = cmp(n.b); return t => a(t) + b(t); }
+    case 'sub': { const a = cmp(n.a), b = cmp(n.b); return t => a(t) - b(t); }
+    case 'mul': { const a = cmp(n.a), b = cmp(n.b); return t => a(t) * b(t); }
+    case 'div': { const a = cmp(n.a), b = cmp(n.b); return t => a(t) / b(t); }
+    case 'pow': { const a = cmp(n.a), b = cmp(n.b); return t => Math.pow(a(t), b(t)); }
+    case 'fn':  { const a = cmp(n.a), f = FUNCS[n.f]; return t => f(a(t)); }
+  }
+}
+const isConst = n => n.n === 'num' || (n.n !== 'var' && ['a', 'b'].every(k => !n[k] || isConst(n[k])));
+const cval = n => cmp(n)(0);
+
+/* --- Derivada simbólica --- */
+function diff(n) {
+  switch (n.n) {
+    case 'num': return NUM(0);
+    case 'var': return NUM(1);
+    case 'neg': return neg(diff(n.a));
+    case 'add': return add(diff(n.a), diff(n.b));
+    case 'sub': return sub(diff(n.a), diff(n.b));
+    case 'mul': return add(mul(diff(n.a), n.b), mul(n.a, diff(n.b)));
+    case 'div': return div(sub(mul(diff(n.a), n.b), mul(n.a, diff(n.b))), pow(n.b, NUM(2)));
+    case 'pow': {
+      const a = n.a, b = n.b, da = diff(a), db = diff(b);
+      if (isConst(b)) return mul(mul(da, b), pow(a, sub(b, NUM(1))));
+      if (isConst(a)) return mul(mul(db, fn('ln', a)), n);
+      return mul(n, add(mul(db, fn('ln', a)), div(mul(b, da), a)));
+    }
+    case 'fn': {
+      const a = n.a, da = diff(a);
+      switch (n.f) {
+        case 'sin':  return mul(da, fn('cos', a));
+        case 'cos':  return neg(mul(da, fn('sin', a)));
+        case 'tan':  return div(da, pow(fn('cos', a), NUM(2)));
+        case 'exp':  return mul(da, n);
+        case 'ln':   return div(da, a);
+        case 'log':  return div(da, mul(a, NUM(Math.LN10)));
+        case 'sqrt': return div(da, mul(NUM(2), n));
+        case 'abs':  return mul(da, div(a, n));
+        case 'asin': return div(da, fn('sqrt', sub(NUM(1), pow(a, NUM(2)))));
+        case 'acos': return neg(div(da, fn('sqrt', sub(NUM(1), pow(a, NUM(2))))));
+        case 'atan': return div(da, add(NUM(1), pow(a, NUM(2))));
+        case 'sinh': return mul(da, fn('cosh', a));
+        case 'cosh': return mul(da, fn('sinh', a));
+        case 'tanh': return div(da, pow(fn('cosh', a), NUM(2)));
+        default:     return NUM(0);
+      }
+    }
+  }
+}
+
+/* --- Integral simbólica (antiderivada sin constante) para formas elementales --- */
+function lin(arg) {                         // devuelve c si arg = c·t + b; si no, null
+  const d = diff(arg);
+  if (!isConst(d)) return null;
+  const v = cval(d);
+  return Number.isFinite(v) && Math.abs(v) > 1e-12 ? v : null;
+}
+function integ(n) {
+  if (isConst(n)) return mul(n, VAR);
+  switch (n.n) {
+    case 'var': return div(pow(VAR, NUM(2)), NUM(2));
+    case 'neg': { const r = integ(n.a); return r && neg(r); }
+    case 'add': { const l = integ(n.a), r = integ(n.b); return l && r ? add(l, r) : null; }
+    case 'sub': { const l = integ(n.a), r = integ(n.b); return l && r ? sub(l, r) : null; }
+    case 'mul':
+      if (isConst(n.a)) { const r = integ(n.b); return r && mul(n.a, r); }
+      if (isConst(n.b)) { const l = integ(n.a); return l && mul(n.b, l); }
+      return null;
+    case 'div':
+      if (isConst(n.b)) { const l = integ(n.a); return l && div(l, n.b); }
+      if (isConst(n.a)) { const c = lin(n.b); if (c !== null) return coef(1 / c, mul(n.a, fn('ln', fn('abs', n.b)))); }
+      return null;
+    case 'pow': {
+      if (isConst(n.b)) {
+        const k = cval(n.b), c = lin(n.a);
+        if (c === null) return null;
+        if (Math.abs(k + 1) < 1e-12) return coef(1 / c, fn('ln', fn('abs', n.a)));
+        return coef(1 / ((k + 1) * c), pow(n.a, NUM(k + 1)));
+      }
+      if (isConst(n.a)) {
+        const c = lin(n.b), a = cval(n.a);
+        if (c !== null && a > 0 && Math.abs(a - 1) > 1e-12) return coef(1 / (c * Math.log(a)), n);
+      }
+      return null;
+    }
+    case 'fn': {
+      const c = lin(n.a); if (c === null) return null;
+      const a = n.a, k = x => coef(1 / c, x);
+      switch (n.f) {
+        case 'sin':  return k(neg(fn('cos', a)));
+        case 'cos':  return k(fn('sin', a));
+        case 'exp':  return k(n);
+        case 'sinh': return k(fn('cosh', a));
+        case 'cosh': return k(fn('sinh', a));
+        case 'tanh': return k(fn('ln', fn('cosh', a)));
+        case 'tan':  return k(neg(fn('ln', fn('abs', fn('cos', a)))));
+        case 'sqrt': return coef(1 / (1.5 * c), pow(a, NUM(1.5)));
+        case 'ln':   return k(sub(mul(a, fn('ln', a)), a));
+        default:     return null;
+      }
+    }
+  }
+  return null;
+}
+
+/* --- Texto legible --- */
+function fmtNum(v) { return Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(6))); }
+function prec(n) {
+  switch (n.n) {
+    case 'add': case 'sub': return 1;
+    case 'mul': case 'div': return 2;
+    case 'neg': return 2.5;
+    case 'num': return (n.v < 0 && !n.name) ? 2.5 : 5;
+    case 'pow': return 4;
+    default: return 5;
+  }
+}
+function str(n, p = 0) {
+  let r;
+  switch (n.n) {
+    case 'num': r = n.name || fmtNum(n.v); break;
+    case 'var': r = 't'; break;
+    case 'add': {
+      const l = str(n.a, 1), b = n.b;
+      if (negLead(b)) r = l + ' - ' + str(flip(b), 2);
+      else r = l + ' + ' + str(b, 1);
+      break;
+    }
+    case 'sub': {
+      const l = str(n.a, 1), b = n.b;
+      if (negLead(b)) r = l + ' + ' + str(flip(b), 2);
+      else r = l + ' - ' + str(b, 2);
+      break;
+    }
+    case 'mul': {
+      const l = str(n.a, 2), rr = str(n.b, n.b.n === 'mul' ? 2 : 2.6);
+      if (plain(n.a)) r = /^[A-Za-z]{2,}\(/.test(rr) ? l + '·' + rr : /^[A-Za-z(|]/.test(rr) ? l + rr : l + '*' + rr;
+      else r = l + '*' + rr;
+      break;
+    }
+    case 'div': r = str(n.a, 2) + '/' + str(n.b, 3); break;
+    case 'neg': r = '-' + str(n.a, 2); break;
+    case 'pow': r = str(n.a, 4.1) + '^' + str(n.b, 4); break;
+    case 'fn':  r = n.f === 'abs' ? '|' + str(n.a, 0) + '|' : n.f + '(' + str(n.a, 0) + ')'; break;
+  }
+  return prec(n) < p ? '(' + r + ')' : r;
+}
+const pretty = s => s.replace(/\^2(?![\d.])/g, '²').replace(/\^3(?![\d.])/g, '³').replace(/ - /g, ' − ')
+  .replace(/(^|[^A-Za-z])pi(?![A-Za-z])/g, '$1π').replace(/π\*t/g, 'πt').replace(/\*(?=[a-z]{2,}\()/g, '·');
+const S = n => pretty(str(n));
+
+/* --- Reglas aplicadas (para explicar cada paso) --- */
+function flatten(n, sg, out) {
+  if (n.n === 'add') { flatten(n.a, sg, out); flatten(n.b, sg, out); }
+  else if (n.n === 'sub') { flatten(n.a, sg, out); flatten(n.b, -sg, out); }
+  else if (n.n === 'neg') flatten(n.a, -sg, out);
+  else out.push(sg < 0 ? neg(n) : n);
+}
+const D_TABLE = {
+  sin:'(sen u)′ = cos(u)·u′', cos:'(cos u)′ = −sen(u)·u′', tan:'(tan u)′ = u′/cos²(u)', exp:'(eᵘ)′ = eᵘ·u′',
+  ln:'(ln u)′ = u′/u', sqrt:'(√u)′ = u′/(2√u)', tanh:'(tanh u)′ = u′/cosh²(u)', sinh:'(senh u)′ = cosh(u)·u′',
+  cosh:'(cosh u)′ = senh(u)·u′', abs:'(|u|)′ = u′·u/|u|'
+};
+function dRules(n, o = new Set()) {
+  switch (n.n) {
+    case 'num': o.add('(constante)′ = 0'); break;
+    case 'var': o.add('(t)′ = 1'); break;
+    case 'neg': dRules(n.a, o); break;
+    case 'add': case 'sub': o.add('(f ± g)′ = f′ ± g′'); dRules(n.a, o); dRules(n.b, o); break;
+    case 'mul':
+      if (isConst(n.a)) { o.add('(k·f)′ = k·f′ (la constante sale)'); dRules(n.b, o); }
+      else if (isConst(n.b)) { o.add('(k·f)′ = k·f′ (la constante sale)'); dRules(n.a, o); }
+      else { o.add('(u·v)′ = u′·v + u·v′ (producto)'); dRules(n.a, o); dRules(n.b, o); }
+      break;
+    case 'div':
+      if (isConst(n.b)) { o.add('(f/k)′ = f′/k'); dRules(n.a, o); }
+      else { o.add('(u/v)′ = (u′v − uv′)/v² (cociente)'); dRules(n.a, o); dRules(n.b, o); }
+      break;
+    case 'pow':
+      if (isConst(n.b)) {
+        if (n.a.n === 'var') o.add('(tⁿ)′ = n·tⁿ⁻¹ (regla de la potencia)');
+        else { o.add('(uⁿ)′ = n·uⁿ⁻¹·u′ (potencia y cadena)'); dRules(n.a, o); }
+      } else if (isConst(n.a)) { o.add('(aᵘ)′ = aᵘ·ln(a)·u′ (exponencial)'); dRules(n.b, o); }
+      else o.add('derivación logarítmica de uᵛ');
+      break;
+    case 'fn':
+      o.add((D_TABLE[n.f] || '(' + n.f + ' u)′ por la regla de la cadena') + ' (cadena)');
+      if (n.a.n !== 'var') { if (lin(n.a) === null) dRules(n.a, o); else o.add('u′ es una constante porque u es lineal en t'); }
+      break;
+  }
+  return o;
+}
+const I_TABLE = {
+  sin:'∫sen(u) dt = −cos(u)/u′', cos:'∫cos(u) dt = sen(u)/u′', exp:'∫eᵘ dt = eᵘ/u′', tanh:'∫tanh(u) dt = ln(cosh u)/u′',
+  sinh:'∫senh(u) dt = cosh(u)/u′', cosh:'∫cosh(u) dt = senh(u)/u′', tan:'∫tan(u) dt = −ln|cos u|/u′',
+  sqrt:'∫√u dt = (2/3)·u^(3/2)/u′', ln:'∫ln(u) dt = (u·ln u − u)/u′'
+};
+function iRules(n, o = new Set()) {
+  if (isConst(n)) { o.add('∫k dt = k·t (integral de una constante)'); return o; }
+  switch (n.n) {
+    case 'var': o.add('∫tⁿ dt = tⁿ⁺¹/(n+1) (regla de la potencia)'); break;
+    case 'neg': iRules(n.a, o); break;
+    case 'add': case 'sub': o.add('∫(f ± g) dt = ∫f dt ± ∫g dt (linealidad)'); iRules(n.a, o); iRules(n.b, o); break;
+    case 'mul': o.add('∫k·f dt = k·∫f dt (la constante sale)'); iRules(isConst(n.a) ? n.b : n.a, o); break;
+    case 'div': if (isConst(n.b)) { o.add('∫f/k dt = (1/k)·∫f dt'); iRules(n.a, o); } else o.add('∫k/u dt = (k/u′)·ln|u|'); break;
+    case 'pow':
+      if (isConst(n.b)) o.add(n.a.n === 'var' ? '∫tⁿ dt = tⁿ⁺¹/(n+1) (regla de la potencia)' : '∫uⁿ dt = uⁿ⁺¹/((n+1)·u′), u lineal');
+      else o.add('∫aᵘ dt = aᵘ/(u′·ln a), u lineal');
+      break;
+    case 'fn': o.add((I_TABLE[n.f] || '∫' + n.f + '(u) dt') + ', u lineal en t'); break;
+  }
+  return o;
+}
+
+/* =====================================================================
+   2. NÚMERICA: Simpson, raíces
+   ===================================================================== */
+function simpson(f, a, b, n = 400) {
+  if (!(b > a)) return 0;
+  if (n % 2) n++;
+  const h = (b - a) / n; let s = f(a) + f(b);
+  for (let i = 1; i < n; i++) s += f(a + i * h) * (i % 2 ? 4 : 2);
+  return s * h / 3;
+}
+function findRoots(f, T) {
+  const out = [], tEnd = T[T.length - 1] || 1;
+  const push = t => { if (!out.some(x => Math.abs(x - t) < 1e-6 * tEnd)) out.push(t); };
+  const vals = T.map(f), fin = vals.filter(Number.isFinite).map(Math.abs);
+  const eps = 1e-9 * Math.max(1e-12, ...fin);
+  for (let i = 0; i < T.length; i++) {
+    const y = vals[i]; if (!Number.isFinite(y)) continue;
+    if (Math.abs(y) <= eps) { push(T[i]); continue; }
+    const y2 = vals[i + 1];
+    if (i < T.length - 1 && Number.isFinite(y2) && y * y2 < 0 && Math.abs(y2) > eps) {
+      let lo = T[i], hi = T[i + 1], flo = y;
+      for (let k = 0; k < 60; k++) { const m = (lo + hi) / 2, fm = f(m); if (fm * flo <= 0) hi = m; else { lo = m; flo = fm; } }
+      push((lo + hi) / 2);
+    }
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/* =====================================================================
+   3. FENÓMENOS REALES: contexto, dominio, rango y restricciones
+   ===================================================================== */
+const MODELS = {
+  bus: {
+    label:'🚌 Bus de TransMilenio entre dos estaciones', expr:'0.9*t - 0.015*t^2', s0:0, tmax:60, t1:0, t2:30, subject:'el bus', distance:true,
+    story:'Un bus articulado sale de una estación en reposo, acelera suavemente, alcanza su velocidad máxima a mitad del trayecto y frena con la misma suavidad hasta detenerse en la estación siguiente. La velocidad se modela con la parábola v(t) = 0.9t − 0.015t² (m/s), que es lo mismo que v(t) = 0.015·t·(60 − t): vale cero justo cuando el bus parte (t = 0) y cuando llega (t = 60 s).',
+    vars:['t: tiempo desde que el bus arranca (s)','v(t): velocidad del bus (m/s)','a(t) = v′(t): aceleración (m/s²)','s(t) = s₀ + ∫v dt: distancia recorrida desde la estación de salida (m)'],
+    domainWhy:'El viaje empieza en t = 0 (antes no existe el fenómeno) y termina cuando el bus se detiene, en t = 60 s. Fuera de ese intervalo la parábola da v < 0, es decir, un bus que retrocede por el carril exclusivo, algo que no ocurre en el trayecto real.',
+    rangeWhy:'La velocidad sube de 0 hasta un máximo de 13.5 m/s (48.6 km/h) en t = 30 s, por debajo de los 50 km/h de referencia urbana. La aceleración pasa de +0.9 a −0.9 m/s² (arranca y frena). La distancia crece de 0 a 540 m, valor típico entre estaciones (500 m a 800 m).',
+    checks:[
+      { t:'v(t) ≥ 0 en todo el dominio: el bus nunca retrocede', f:r => r.vmin >= -1e-9, val:r => 'v mín = ' + r.vmin.toFixed(2) + ' m/s' },
+      { t:'v(0) = 0 y v(t_max) = 0: parte y llega detenido', f:r => Math.abs(r.v0) < 1e-6 && Math.abs(r.vEnd) < 1e-6, val:r => 'v(0) = ' + r.v0.toFixed(2) + ' · v(fin) = ' + r.vEnd.toFixed(2) },
+      { t:'v máx ≤ 13.9 m/s (50 km/h, límite urbano de referencia)', f:r => r.vmax <= 13.9, val:r => 'v máx = ' + r.vmax.toFixed(2) + ' m/s (' + (r.vmax * 3.6).toFixed(1) + ' km/h)' },
+      { t:'|a| ≤ 1.5 m/s²: comodidad y seguridad de pasajeros de pie', f:r => Math.max(Math.abs(r.amin), Math.abs(r.amax)) <= 1.5, val:r => '|a| máx = ' + Math.max(Math.abs(r.amin), Math.abs(r.amax)).toFixed(2) + ' m/s²' },
+      { t:'Distancia total entre 500 m y 800 m (separación típica de estaciones)', f:r => r.sEnd >= 500 && r.sEnd <= 800, val:r => 's(fin) = ' + r.sEnd.toFixed(1) + ' m' }
+    ]
+  },
+  sprint: {
+    label:'🏃 Carrera de 100 m planos', expr:'12*(1 - exp(-t/1.25))', s0:0, tmax:9.6, t1:0, t2:3, subject:'el velocista', distance:true,
+    story:'Un velocista sale de los tacos en reposo y acelera con mucha fuerza al comienzo; a medida que gana velocidad, la resistencia del aire y el límite de sus músculos hacen que la aceleración disminuya y la velocidad se acerque, sin alcanzarlo, a un valor máximo. Se modela con v(t) = 12·(1 − e^(−t/1.25)) (m/s): 12 m/s es la velocidad límite del atleta y 1.25 s es la constante de tiempo con la que se aproxima a ella.',
+    vars:['t: tiempo desde el disparo de salida (s)','v(t): velocidad del atleta (m/s)','a(t) = v′(t): aceleración (m/s²)','s(t) = s₀ + ∫v dt: distancia recorrida desde la línea de salida (m)'],
+    domainWhy:'El tiempo empieza con el disparo (t = 0) y termina cuando el atleta cruza la meta: con este modelo s(9.6) ≈ 100 m. Después de la meta ya no hay pista de 100 m y el modelo deja de describir la carrera.',
+    rangeWhy:'v ∈ [0, 12): parte de 0 y nunca llega a 12 m/s, solo se acerca (asíntota horizontal v = 12), coherente con el máximo humano registrado (≈ 12.4 m/s, unos 44.7 km/h). a ∈ (0, 9.6] m/s²: es máxima en la salida y decrece hacia 0 sin hacerse negativa, porque el atleta no frena antes de la meta. s ∈ [0, ≈ 100] m.',
+    checks:[
+      { t:'v(t) ≥ 0: el atleta siempre avanza hacia la meta', f:r => r.vmin >= -1e-9, val:r => 'v mín = ' + r.vmin.toFixed(2) + ' m/s' },
+      { t:'v ≤ 12.4 m/s (≈ 44.7 km/h): máximo humano registrado', f:r => r.vmax <= 12.4, val:r => 'v máx = ' + r.vmax.toFixed(2) + ' m/s' },
+      { t:'a(t) ≥ 0: no frena antes de cruzar la meta', f:r => r.amin >= -1e-9, val:r => 'a mín = ' + r.amin.toFixed(3) + ' m/s²' },
+      { t:'a(0) ≤ 10 m/s²: límite de fuerza muscular y fricción con la pista', f:r => r.a0 <= 10, val:r => 'a(0) = ' + r.a0.toFixed(2) + ' m/s²' },
+      { t:'s(t_max) ≈ 100 m: longitud de la pista', f:r => Math.abs(r.sEnd - 100) <= 1.5, val:r => 's(fin) = ' + r.sEnd.toFixed(1) + ' m' }
+    ]
+  },
+  sky: {
+    label:'🪂 Caída libre de un paracaidista', expr:'55*tanh(t/5.6)', s0:0, tmax:50, t1:0, t2:10, subject:'el paracaidista', distance:true,
+    story:'Al saltar del avión, el paracaidista cae con una aceleración cercana a g = 9.8 m/s². Mientras más rápido cae, más lo frena el aire, hasta que la fuerza del aire iguala su peso y deja de acelerar: alcanza la velocidad terminal. Se modela con v(t) = 55·tanh(t/5.6) (m/s), donde 55 m/s (≈ 198 km/h) es la velocidad terminal con el cuerpo extendido.',
+    vars:['t: tiempo desde el salto (s)','v(t): rapidez de caída (m/s)','a(t) = v′(t): aceleración (m/s²)','s(t) = s₀ + ∫v dt: distancia caída desde el avión (m)'],
+    domainWhy:'Empieza al saltar (t = 0) y termina cuando abre el paracaídas, a unos 1 500 m del suelo, después de caer ≈ 2 500 m (salto desde ≈ 4 000 m). Con el paracaídas abierto la fuerza del aire cambia y esta función ya no describe el fenómeno.',
+    rangeWhy:'v ∈ [0, 55): parte del reposo y se acerca a la velocidad terminal sin alcanzarla. a ∈ (0, 9.8] m/s²: empieza en ≈ g y decrece hacia 0 porque la velocidad deja de cambiar; nunca supera g, ya que el aire solo frena. s ∈ [0, ≈ 2 500] m.',
+    checks:[
+      { t:'v(t) ≥ 0: la rapidez de caída no es negativa', f:r => r.vmin >= -1e-9, val:r => 'v mín = ' + r.vmin.toFixed(2) + ' m/s' },
+      { t:'v ≤ 55 m/s: no supera la velocidad terminal', f:r => r.vmax <= 55.0001, val:r => 'v máx = ' + r.vmax.toFixed(2) + ' m/s (' + (r.vmax * 3.6).toFixed(0) + ' km/h)' },
+      { t:'a(0) ≈ g = 9.8 m/s²: al saltar solo actúa la gravedad', f:r => Math.abs(r.a0 - 9.8) <= 0.1, val:r => 'a(0) = ' + r.a0.toFixed(2) + ' m/s²' },
+      { t:'0 ≤ a ≤ g: el aire frena, nunca acelera más que la gravedad', f:r => r.amin >= -1e-9 && r.amax <= 9.9, val:r => 'a ∈ [' + r.amin.toFixed(2) + ', ' + r.amax.toFixed(2) + ']' },
+      { t:'s(t_max) entre 2 400 m y 2 600 m (altura de caída libre disponible)', f:r => r.sEnd >= 2400 && r.sEnd <= 2600, val:r => 's(fin) = ' + r.sEnd.toFixed(0) + ' m' }
+    ]
+  },
+  mruv:     { generic:true, expr:'5 + 2*t',          s0:0, tmax:10,   t1:0, t2:4 },
+  cubica:   { generic:true, expr:'3*t^2 - 12*t + 9', s0:0, tmax:5,    t1:1, t2:4 },
+  armonica: { generic:true, expr:'5*cos(t)',         s0:0, tmax:6.28, t1:0, t2:3.14 }
+};
+
+/* =====================================================================
+   4. ANÁLISIS (se recalcula al cambiar datos) Y RENDER (cada cuadro)
+   ===================================================================== */
+const N = 400;
+let M = null;                              // modelo analizado
+let cur = 0, playing = false, raf = 0, lastTs = 0;
+
+const f1 = v => Number.isFinite(v) ? v.toFixed(1) : '—';
+const f2 = v => Number.isFinite(v) ? v.toFixed(2) : '—';
+const f4 = v => Number.isFinite(v) ? String(Number(v.toFixed(4))) : '—';
+const sg2 = v => (v > 0 ? '+' : '') + f2(v);
+const numVal = (id, def) => { const v = parseFloat(String($(id).value).replace(',', '.')); return Number.isFinite(v) ? v : def; };
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+function getRange() {
+  if (M) return { tMax: M.tMax, tIni: M.tIni, tFin: M.tFin };
+  return { tMax: 10, tIni: 0, tFin: 10 };
+}
+
+function analyze() {
+  const err = $('err'), warnBox = $('warn'); err.style.display = 'none';
+  const W = [];
+  const raw = $('expr').value;
+  let ast, V, dAst, A;
+  try { ast = parse(raw); V = cmp(ast); V(1); dAst = diff(ast); A = cmp(dAst); A(1); }
+  catch (e) { err.textContent = '⚠️ Expresión no válida: ' + e.message; err.style.display = 'block'; return false; }
+  if (/\d,\d/.test(raw)) W.push('La coma decimal se interpretó como punto.');
+
+  // --- Datos del usuario, validados ---
+  const s0 = numVal('s0', 0);
+  let tMax = numVal('tmax', 10);
+  if (tMax < 0.5) { W.push('t_max mínimo = 0.5 s: se ajustó.'); tMax = 0.5; }
+  if (tMax > 100) { W.push('t_max máximo = 100 s: se ajustó.'); tMax = 100; }
+  const clampT = (v, name) => {
+    if (v < 0 || v > tMax) { W.push(name + ' se ajustó al dominio [0, ' + fmtNum(tMax) + '] s.'); return Math.max(0, Math.min(v, tMax)); }
+    return v;
+  };
+  let tau1 = clampT(numVal('tau1', 0), 'τ₁'), tau2 = clampT(numVal('tau2', tMax), 'τ₂');
+  if (tau2 < tau1) { [tau1, tau2] = [tau2, tau1]; W.push('τ₁ y τ₂ estaban invertidos: se intercambiaron.'); }
+  if (tau2 === tau1) W.push('τ₁ = τ₂: el intervalo de análisis está vacío.');
+  let tIni = clampT(numVal('tini', 0), 'El tiempo inicial'), tFin = clampT(numVal('tfin', tMax), 'El tiempo final');
+  if (tFin < tIni) { [tIni, tFin] = [tFin, tIni]; W.push('El tiempo inicial era mayor que el final: se intercambiaron.'); }
+  if (tFin === tIni) W.push('Tiempo inicial = tiempo final: no hay movimiento que reproducir.');
+
+  // --- Antiderivada simbólica y constante de integración ---
+  let F = null, Fev = null, SF = null, Sev = null, C = null;
+  try {
+    F = integ(ast);
+    if (F) {
+      Fev = cmp(F);
+      const F0 = Fev(0);
+      if (Number.isFinite(F0)) { C = s0 - F0; if (Math.abs(C) < 1e-12) C = 0; SF = add(F, NUM(C)); Sev = cmp(SF); }
+    }
+  } catch (e) { F = null; }
+
+  // --- Muestreo ---
+  const T = [], Vs = [], As = [], Sn = [], dt = tMax / N;
+  let acc = s0;
+  for (let i = 0; i <= N; i++) {
+    const t = i * dt; T.push(t); Vs.push(V(t)); As.push(A(t));
+    if (i > 0) {
+      const inc = dt / 6 * (Vs[i - 1] + 4 * V(T[i - 1] + dt / 2) + Vs[i]);       // Simpson por tramo
+      if (Number.isFinite(inc)) acc += inc;
+    }
+    Sn.push(acc);
+  }
+  let Sarr = Sn;
+  if (Sev) { const Ss = T.map(Sev); if (Ss.every(Number.isFinite)) Sarr = Ss; else { SF = null; Sev = null; } }
+  const bad = Vs.findIndex(x => !Number.isFinite(x));
+  if (bad >= 0) W.push('La función no está definida (o es infinita) cerca de t ≈ ' + f2(T[bad]) + ' s. Revisa el dominio.');
+
+  // --- Rango calculado y puntos clave ---
+  const mm = a => { const f = a.filter(Number.isFinite); return f.length ? [Math.min(...f), Math.max(...f)] : [NaN, NaN]; };
+  const [vmin, vmax] = mm(Vs), [amin, amax] = mm(As), [smin, smax] = mm(Sarr);
+  const r = { vmin, vmax, amin, amax, smin, smax, v0:Vs[0], vEnd:Vs[N], a0:As[0], aEnd:As[N], sEnd:Sarr[N], tMax };
+  const vRoots = findRoots(V, T), aRoots = findRoots(A, T);
+
+  // --- Intervalo [τ₁, τ₂] ---
+  let dv = 0, av = 0, disp = 0, dispExact = false, dist = 0; const shT = [], shV = [];
+  if (tau2 > tau1) {
+    dv = V(tau2) - V(tau1); av = dv / (tau2 - tau1);
+    for (let i = 0; i <= 100; i++) { const t = tau1 + (tau2 - tau1) * i / 100; shT.push(t); shV.push(V(t)); }
+    disp = simpson(V, tau1, tau2, 600);
+    dist = simpson(t => Math.abs(V(t)), tau1, tau2, 2000);
+    if (Fev) { const d = Fev(tau2) - Fev(tau1); if (Number.isFinite(d)) { disp = d; dispExact = true; } }
+  }
+
+  // --- Modelo con contexto ---
+  const key = $('model').value, model = MODELS[key] && !MODELS[key].generic ? MODELS[key] : null;
+  const subject = model ? model.subject : 'el objeto';
+  const vStr = S(ast), aStr = S(dAst);
+
+  // --- Procesos paso a paso (parte que no depende de t) ---
+  const terms = []; flatten(ast, 1, terms);
+  const dStatic = [
+    { c:'h', t:'Paso 1 · Función original' }, { c:'ln ind', t:'v(t) = ' + vStr },
+    { c:'h', t:'Paso 2 · Derivar término a término (la derivada de una suma es la suma de derivadas)' }
+  ];
+  terms.forEach(tm => {
+    dStatic.push({ c:'ln ind', t:'d/dt[ ' + S(tm) + ' ] = ' + S(diff(tm)) });
+    dStatic.push({ c:'note', t:'↳ ' + Array.from(dRules(tm)).join(' · ') });
+  });
+  dStatic.push({ c:'h', t:'Paso 3 · Sumar los resultados' }, { c:'ln ind res', t:"a(t) = v′(t) = " + aStr });
+
+  const iStatic = [
+    { c:'h', t:'Paso 1 · Definición de la función acumulada' }, { c:'ln ind', t:'s(t) = s₀ + ∫₀ᵗ v(τ) dτ' }
+  ];
+  if (F) {
+    iStatic.push({ c:'h', t:'Paso 2 · Integrar término a término' });
+    terms.forEach(tm => {
+      const it = integ(tm);
+      iStatic.push({ c:'ln ind', t:'∫ ' + S(tm) + ' dt = ' + (it ? S(it) : '?') });
+      iStatic.push({ c:'note', t:'↳ ' + Array.from(iRules(tm)).join(' · ') });
+    });
+    iStatic.push({ c:'h', t:'Paso 3 · Antiderivada' }, { c:'ln ind', t:'F(t) = ' + S(F) + ' + C' });
+    if (SF) {
+      iStatic.push({ c:'h', t:'Paso 4 · Condición inicial s(0) = s₀' });
+      iStatic.push({ c:'ln ind', t:'F(0) = ' + f4(Fev(0)) + '  ⇒  C = s₀ − F(0) = ' + f4(s0) + ' − ' + f4(Fev(0)) + ' = ' + f4(C) });
+      iStatic.push({ c:'h', t:'Paso 5 · Función acumulada' }, { c:'ln ind res', t:'s(t) = ' + S(SF) });
+    } else {
+      iStatic.push({ c:'note', t:'F no está definida en t = 0, por eso s(t) se calcula numéricamente con la regla de Simpson.' });
+    }
+  } else {
+    iStatic.push({ c:'note', t:'Esta función no tiene una antiderivada elemental que el programa pueda hallar de forma simbólica; la integral se calcula numéricamente con la regla de Simpson (error muy pequeño).' });
+  }
+  const dTau = [], iTau = [];
+  if (tau2 > tau1) {
+    dTau.push({ c:'h', t:'En el intervalo [τ₁, τ₂] = [' + fmtNum(tau1) + ', ' + fmtNum(tau2) + '] s' });
+    dTau.push({ c:'ln ind', t:'Δv = v(τ₂) − v(τ₁) = ' + f4(V(tau2)) + ' − ' + f4(V(tau1)) + ' = ' + f4(dv) + ' m/s' });
+    dTau.push({ c:'ln ind', t:'a promedio = Δv/Δt = ' + f4(dv) + '/' + f4(tau2 - tau1) + ' = ' + f4(av) + ' m/s²' });
+    iTau.push({ c:'h', t:'Teorema fundamental del cálculo en [τ₁, τ₂]' });
+    iTau.push({ c:'ln ind', t: dispExact
+      ? 'Δs = ∫ v dt = F(τ₂) − F(τ₁) = ' + f4(Fev(tau2)) + ' − ' + f4(Fev(tau1)) + ' = ' + f4(disp) + ' m'
+      : 'Δs = ∫ v dt ≈ ' + f4(disp) + ' m (Simpson)' });
+    iTau.push({ c:'ln ind res', t:'Δs = ' + f4(disp) + ' m  ·  distancia total = ' + f4(dist) + ' m' });
+  }
+
+  M = { ast, V, dAst, A, F, Fev, SF, Sev, C, s0, tMax, tau1, tau2, tIni, tFin, T, Vs, As, S:Sarr, r, vRoots, aRoots,
+        dv, av, disp, dispExact, dist, shT, shV, model, subject, vStr, aStr, dStatic, iStatic, dTau, iTau };
+
+  $('ctx').innerHTML = ctxHTML(M, W);
+  if (W.length) { warnBox.innerHTML = '<b>Avisos</b><ul>' + W.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul>'; warnBox.style.display = 'block'; }
+  else warnBox.style.display = 'none';
+  return true;
+}
+
+function keyPointsHTML(m) {
+  const L = [], eps = 1e-3 * m.tMax, sub = m.subject, r = m.r;
+  const isEdge0 = t => t < 1e-9, isEdge1 = t => t > m.tMax - 1e-9;
+  m.vRoots.forEach(t => {
+    if (isEdge0(t)) L.push(`<b>t = 0 s:</b> v = 0 → ${sub} parte del reposo.`);
+    else if (isEdge1(t)) L.push(`<b>t = ${f2(t)} s:</b> v = 0 → ${sub} queda en reposo al final del dominio.`);
+    else if (m.V(t - eps) * m.V(t + eps) < 0) L.push(`<b>t = ${f2(t)} s:</b> v = 0 y cambia de signo → ${sub} se detiene e invierte su sentido; s(t) tiene un máximo o mínimo local.`);
+    else L.push(`<b>t = ${f2(t)} s:</b> v = 0 sin cambiar de signo → ${sub} se detiene un instante.`);
+  });
+  m.aRoots.forEach(t => {
+    if (isEdge0(t) || isEdge1(t)) { L.push(`<b>t = ${f2(t)} s:</b> a = 0 en un extremo del dominio.`); return; }
+    const b = m.A(t - eps), a = m.A(t + eps);
+    if (b > 0 && a < 0) L.push(`<b>t = ${f2(t)} s:</b> a = 0 y cambia de + a − → v alcanza un <b>máximo</b> (v = ${f2(m.V(t))} m/s). En s(t) hay un punto de inflexión: la curva cambia de cóncava hacia arriba a cóncava hacia abajo.`);
+    else if (b < 0 && a > 0) L.push(`<b>t = ${f2(t)} s:</b> a = 0 y cambia de − a + → v alcanza un <b>mínimo</b> (v = ${f2(m.V(t))} m/s). En s(t) hay un punto de inflexión.`);
+    else L.push(`<b>t = ${f2(t)} s:</b> a = 0 sin cambiar de signo → v tiene un punto de inflexión horizontal.`);
+  });
+  const amaxAbs = Math.max(Math.abs(r.amin), Math.abs(r.amax));
+  if (amaxAbs > 0 && Math.abs(r.aEnd) < 1e-3 * amaxAbs && Math.abs(r.vEnd) > 1e-6 && !m.aRoots.some(isEdge1))
+    L.push(`Al final del dominio a(t) ≈ 0 → la velocidad se estabiliza cerca de <b>${f2(r.vEnd)} m/s</b> (velocidad límite).`);
+  return L.length ? '<ul class="keys">' + L.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '<p>No se detectaron puntos donde v(t) o a(t) valgan cero en este dominio.</p>';
+}
+
+function ctxHTML(m, W) {
+  const r = m.r, mo = m.model, d = '[0, ' + fmtNum(r.tMax) + '] s';
+  const finite = !m.Vs.some(x => !Number.isFinite(x));
+  let h = '<h2 class="serif">🌍 ' + (mo ? 'Fenómeno modelado' : 'Contexto de la función') + '</h2>';
+  const rangeBox = '<p class="mono" style="font-size:13px">v ∈ [' + f2(r.vmin) + ', ' + f2(r.vmax) + '] m/s<br>a ∈ [' + f2(r.amin) + ', ' + f2(r.amax) + '] m/s²<br>s ∈ [' + f2(r.smin) + ', ' + f2(r.smax) + '] m</p>';
+  let checks = '';
+  if (mo) {
+    h += '<div class="ctitle">' + mo.label + '</div><p>' + mo.story + '</p>';
+    h += '<div class="ctx-grid">' +
+      '<div><h4>Variables</h4><ul>' + mo.vars.map(v => '<li>' + v + '</li>').join('') + '</ul></div>' +
+      '<div><h4>Dominio (justificado)</h4><p><b>D = ' + d + '</b></p><p>' + mo.domainWhy + '</p></div>' +
+      '<div><h4>Rango (calculado con la función)</h4>' + rangeBox + '<p>' + mo.rangeWhy + '</p></div></div>';
+    checks = mo.checks.map(c => { const ok = c.f(r); return '<li class="' + (ok ? 'ok' : 'bad') + '"><span>' + (ok ? '✓' : '✗') + '</span><span>' + c.t + ' &nbsp;<b>(' + c.val(r) + ')</b></span></li>'; }).join('');
+  } else {
+    h += '<p>' + (MODELS[$('model').value] && MODELS[$('model').value].generic
+      ? 'Modelo matemático de práctica: no está ligado a un fenómeno concreto. Elige uno de los <b>fenómenos reales</b> para ver el análisis completo del dominio, el rango y las restricciones físicas y sociales.'
+      : 'Función personalizada. Para un análisis completo, justifica por qué tu dominio, tu rango y tus restricciones tienen sentido en el fenómeno que modelas.') + '</p>';
+    h += '<div class="ctx-grid">' +
+      '<div><h4>Variables</h4><ul><li>t: tiempo (s)</li><li>v(t): velocidad (m/s)</li><li>a(t) = v′(t): aceleración (m/s²)</li><li>s(t) = s₀ + ∫v dt: posición (m)</li></ul></div>' +
+      '<div><h4>Dominio</h4><p><b>D = ' + d + '</b></p><p>Elegido por ti con t_max. Comprueba que la función esté definida y tenga sentido físico en todo el intervalo.</p></div>' +
+      '<div><h4>Rango (calculado con la función)</h4>' + rangeBox + '</div></div>';
+    checks = '<li class="' + (finite ? 'ok' : 'bad') + '"><span>' + (finite ? '✓' : '✗') + '</span><span>La función es finita en todo el dominio</span></li>' +
+      '<li class="info"><span>ℹ</span><span>' + (r.vmin < -1e-9 ? 'v(t) toma valores negativos: el objeto cambia de sentido y s(t) es posición, no distancia recorrida.' : 'v(t) ≥ 0: el objeto nunca retrocede, así que s(t) es la distancia recorrida.') + '</span></li>';
+  }
+  h += '<h4>Restricciones físicas y sociales · verificadas con tus datos</h4><ul class="checks">' + checks + '</ul>';
+  h += '<h4 style="margin-top:12px">Puntos clave detectados</h4>' + keyPointsHTML(m);
+  return h;
+}
+
+/* --- Gráfica SVG con relaciones geométricas --- */
+function niceStep(range, n) {
+  const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+}
+function ticks(min, max, n) {
+  const s = niceStep(max - min, n), out = [];
+  for (let v = Math.ceil(min / s) * s; v <= max + s * 1e-9; v += s) out.push(Math.abs(v) < s * 1e-9 ? 0 : v);
+  return out;
+}
+const fmt = v => { const a = Math.abs(v); return (a !== 0 && (a >= 1e5 || a < 1e-3)) ? v.toExponential(1) : String(+v.toPrecision(4)); };
+function clipSeg(t0, y0, m, tA, tB, ymin, ymax) {
+  let a = tA, b = tB;
+  if (Math.abs(m) > 1e-12) { const t1 = (ymin - y0) / m + t0, t2 = (ymax - y0) / m + t0; a = Math.max(a, Math.min(t1, t2)); b = Math.min(b, Math.max(t1, t2)); }
+  else if (y0 < ymin || y0 > ymax) return null;
+  return a < b ? [a, y0 + m * (a - t0), b, y0 + m * (b - t0)] : null;
+}
+
+function drawChart(id, o) {
+  const W = 800, H = 310, L = 66, R = 22, Tp = 42, B = 46, pw = W - L - R, ph = H - Tp - B;
+  const ys = o.y.filter(Number.isFinite);
+  let lo = ys.length ? Math.min(...ys) : -1, hi = ys.length ? Math.max(...ys) : 1;
+  const extra = [].concat(o.area ? o.area.y : [], o.outline ? o.outline.y : []).filter(Number.isFinite);
+  extra.forEach(v => { lo = Math.min(lo, v); hi = Math.max(hi, v); });
+  if (ys.length > 20) {                    // recorte robusto si hay asíntotas
+    const so = ys.slice().sort((a, b) => a - b), q = p => so[Math.floor(p * (so.length - 1))];
+    const q1 = q(0.02), q9 = q(0.98), span = q9 - q1;
+    if (span > 0 && hi - lo > 20 * span) { lo = q1 - 0.5 * span; hi = q9 + 0.5 * span; }
+  }
+  lo = Math.min(lo, 0); hi = Math.max(hi, 0);
+  if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+  const pad = (hi - lo) * 0.08, ymin = lo - pad, ymax = hi + pad;
+  const X = t => L + (t / o.xmax) * pw, Y = v => Tp + (1 - (v - ymin) / (ymax - ymin)) * ph;
+  const cl = v => Math.max(ymin, Math.min(ymax, v));
+
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Inter, system-ui, sans-serif">`;
+  s += `<rect width="${W}" height="${H}" fill="#fff"/>`;
+  s += `<text x="${W / 2}" y="24" text-anchor="middle" font-size="15" font-weight="700" fill="#16587B" font-family="Georgia, serif">${esc(o.title)}</text>`;
+  ticks(ymin, ymax, 6).forEach(v => {
+    s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#e5ecf2"/>`;
+    s += `<text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#475569">${fmt(v)}</text>`;
+  });
+  ticks(0, o.xmax, 8).forEach(v => {
+    s += `<line x1="${X(v)}" x2="${X(v)}" y1="${Tp}" y2="${Tp + ph}" stroke="#e5ecf2"/>`;
+    s += `<text x="${X(v)}" y="${Tp + ph + 16}" text-anchor="middle" font-size="11" fill="#475569">${fmt(v)}</text>`;
+  });
+  if (o.tFin > o.tIni) s += `<rect x="${X(o.tIni)}" y="${Tp}" width="${X(o.tFin) - X(o.tIni)}" height="${ph}" fill="rgba(22,88,123,0.06)"/>`;
+  s += `<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" stroke="#94a3b8" stroke-width="1.5"/>`;
+  s += `<rect x="${L}" y="${Tp}" width="${pw}" height="${ph}" fill="none" stroke="#cbd5e1"/>`;
+  s += `<text x="${L + pw / 2}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#16587B">Tiempo t (s)</text>`;
+  s += `<text transform="translate(16 ${Tp + ph / 2}) rotate(-90)" text-anchor="middle" font-size="12" fill="#16587B">${esc(o.ytitle)}</text>`;
+
+  // Área acumulada desde 0 hasta t (relación integral)
+  if (o.area && o.area.t.length > 1) {
+    const b = Y(cl(0)); let d = `M${X(o.area.t[0])},${b}`;
+    o.area.t.forEach((t, i) => { d += `L${X(t)},${Y(cl(Number.isFinite(o.area.y[i]) ? o.area.y[i] : 0))}`; });
+    d += `L${X(o.area.t[o.area.t.length - 1])},${b}Z`;
+    s += `<path d="${d}" fill="${o.area.fill}" stroke="none"/>`;
+  }
+  // Intervalo analítico [τ₁, τ₂]: contorno punteado
+  if (o.outline && o.outline.t.length > 1) {
+    const b = Y(cl(0)); let d = `M${X(o.outline.t[0])},${b}`;
+    o.outline.t.forEach((t, i) => { d += `L${X(t)},${Y(cl(Number.isFinite(o.outline.y[i]) ? o.outline.y[i] : 0))}`; });
+    d += `L${X(o.outline.t[o.outline.t.length - 1])},${b}Z`;
+    s += `<path d="${d}" fill="none" stroke="#16587B" stroke-width="1.6" stroke-dasharray="5 4"/>`;
+  }
+  // Curva (se corta donde no es finita o sale del rango)
+  let d = '', pen = false;
+  o.t.forEach((t, i) => {
+    const v = o.y[i];
+    if (!Number.isFinite(v) || v < ymin || v > ymax) { pen = false; return; }
+    d += (pen ? 'L' : 'M') + X(t).toFixed(1) + ',' + Y(v).toFixed(1); pen = true;
+  });
+  s += `<path d="${d}" fill="none" stroke="${o.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+  // Recta tangente: su pendiente es el valor de la tasa de cambio
+  if (o.tangent && Number.isFinite(o.yCur) && Number.isFinite(o.tangent.m)) {
+    const dd = 0.14 * o.xmax, sg = clipSeg(o.tCur, o.yCur, o.tangent.m, Math.max(0, o.tCur - dd), Math.min(o.xmax, o.tCur + dd), ymin, ymax);
+    if (sg) s += `<line x1="${X(sg[0])}" y1="${Y(sg[1])}" x2="${X(sg[2])}" y2="${Y(sg[3])}" stroke="${o.tangent.color}" stroke-width="2.6" stroke-dasharray="7 4" stroke-linecap="round"/>`;
+  }
+  s += `<line x1="${X(o.tCur)}" x2="${X(o.tCur)}" y1="${Tp}" y2="${Tp + ph}" stroke="#ef4444" stroke-width="1.4" stroke-dasharray="3 4"/>`;
+  // Llave vertical: la altura acumulada
+  if (o.bracket && Number.isFinite(o.bracket.y0) && Number.isFinite(o.bracket.y1)) {
+    const y0 = Y(cl(o.bracket.y0)), y1 = Y(cl(o.bracket.y1)), x = X(o.tCur), c = o.bracket.color;
+    s += `<line x1="${x}" x2="${x}" y1="${y0}" y2="${y1}" stroke="${c}" stroke-width="6" opacity=".85"/>`;
+    s += `<line x1="${x - 7}" x2="${x + 7}" y1="${y0}" y2="${y0}" stroke="${c}" stroke-width="2"/><line x1="${x - 7}" x2="${x + 7}" y1="${y1}" y2="${y1}" stroke="${c}" stroke-width="2"/>`;
+    const right = o.tCur < o.xmax * 0.6;
+    s += `<text x="${x + (right ? 12 : -12)}" y="${(y0 + y1) / 2 + 4}" text-anchor="${right ? 'start' : 'end'}" font-size="12" font-weight="700" fill="${c}" stroke="#fff" stroke-width="3.5" paint-order="stroke">${esc(o.bracket.label)}</text>`;
+  }
+  if (Number.isFinite(o.yCur)) s += `<circle cx="${X(o.tCur)}" cy="${Y(cl(o.yCur))}" r="6.5" fill="${o.dot}" stroke="#fff" stroke-width="2.5"/>`;
+  s += `</svg>`;
+
+  const box = $(id);
+  box.innerHTML = s + '<div class="tip"></div>';
+  const svg = box.querySelector('svg'), tip = box.querySelector('.tip');
+  svg.addEventListener('mousemove', ev => {
+    const rc = svg.getBoundingClientRect(), px = (ev.clientX - rc.left) * (W / rc.width);
+    if (px < L || px > W - R) { tip.style.display = 'none'; return; }
+    const t = ((px - L) / pw) * o.xmax, i = Math.max(0, Math.min(o.t.length - 1, Math.round(t / o.xmax * (o.t.length - 1))));
+    if (!Number.isFinite(o.y[i]) || o.y[i] < ymin || o.y[i] > ymax) { tip.style.display = 'none'; return; }
+    tip.textContent = `t = ${o.t[i].toFixed(2)} s · ${o.label} = ${o.y[i].toFixed(3)} ${o.unit}`;
+    tip.style.left = (X(o.t[i]) / W * rc.width) + 'px';
+    tip.style.top = (Y(o.y[i]) / H * rc.height) + 'px';
+    tip.style.display = 'block';
+  });
+  svg.addEventListener('mouseleave', () => tip.style.display = 'none');
+}
+
+function lines(arr) { return arr.map(l => '<div class="' + (l.c === 'h' ? 'h' : l.c === 'note' ? 'note' : l.c) + '">' + esc(l.t) + '</div>').join(''); }
+const sw = (c, k, txt) => `<span><i class="sw ${k || ''}" style="--c:${c}"></i>${txt}</span>`;
+const C_S = '#16587B', C_V = '#2E8B57', C_A = '#D9534F';
+
+function render() {
+  if (!M) return;
+  const m = M, tCur = Math.max(m.tIni, Math.min(cur, m.tFin)), tc = f2(tCur);
+  $('tLabel').textContent = tc + ' s';
+  const vCur = m.V(tCur), aCur = m.A(tCur), v0 = m.V(0);
+  const areaV = simpson(m.V, 0, tCur, 400), areaA = simpson(m.A, 0, tCur, 400);
+  const sCur = m.Sev ? m.Sev(tCur) : m.s0 + areaV;
+  const dS = sCur - m.s0, dV = vCur - v0;
+
+  $('eqV').textContent = 'v(t) = ' + m.vStr;
+  $('eqA').textContent = 'a(t) = ' + m.aStr;
+  $('eqS').textContent = m.SF ? 's(t) = ' + S(m.SF) : 's(t) = s₀ + ∫v(t)dt';
+  $('resV').textContent = `v(${tc}) = ${f2(vCur)} m/s`;
+  $('resA').textContent = `a(${tc}) = ${f2(aCur)} m/s²`;
+  $('resS').textContent = `s(${tc}) = ${f2(sCur)} m`;
+  $('rDv').textContent = f2(m.dv) + ' m/s';
+  $('rAv').textContent = f2(m.av) + ' m/s²';
+  $('rDs').textContent = f2(m.disp) + ' m';
+  $('rDt').textContent = f2(m.dist) + ' m';
+
+  // Verificaciones numéricas independientes de las fórmulas simbólicas
+  const h = 1e-5;
+  const numDer = tCur - h >= 0 ? (m.V(tCur + h) - m.V(tCur - h)) / (2 * h) : (m.V(tCur + 1e-6) - m.V(tCur)) / 1e-6;
+  const derDef = Number.isFinite(aCur) && Number.isFinite(numDer);
+  const intDef = Number.isFinite(areaV) && Number.isFinite(dS);
+  const derOK = derDef && Math.abs(numDer - aCur) <= 1e-4 * (1 + Math.abs(aCur));
+  const intOK = intDef && Math.abs(areaV - dS) <= 1e-6 * (1 + Math.abs(dS));
+
+  const dDyn = [
+    { c:'h', t:'Paso 4 · Evaluar en t = ' + tc + ' s' },
+    { c:'ln ind', t:'a(' + tc + ') = ' + f4(aCur) + ' m/s²' },
+    { c:'h', t:'Verificación con la definición (cociente incremental)' },
+    derDef
+      ? { c:'ln ind ' + (derOK ? 'ok' : 'bad'), t:'[v(t+h) − v(t−h)]/(2h) = ' + f4(numDer) + (derOK ? '  ≈  ' : '  ≠  ') + f4(aCur) + (derOK ? '  ✓' : '  ✗') }
+      : { c:'note', t:'La función no está definida en este instante, por eso no se puede verificar aquí. Mueve el tiempo inicial dentro del dominio.' }
+  ];
+  const iDyn = [];
+  if (m.F) {
+    iDyn.push({ c:'h', t:'Paso 6 · Evaluar en t = ' + tc + ' s' }, { c:'ln ind', t:'s(' + tc + ') = ' + f4(sCur) + ' m' });
+    iDyn.push({ c:'h', t:'Verificación numérica (regla de Simpson)' });
+    iDyn.push(intDef
+      ? { c:'ln ind ' + (intOK ? 'ok' : 'bad'), t:'∫₀ᵗ v dt ≈ ' + f4(areaV) + (intOK ? '  =  ' : '  ≠  ') + 's(t) − s₀ = ' + f4(dS) + (intOK ? '  ✓' : '  ✗') }
+      : { c:'note', t:'La integral no se puede evaluar aquí porque v(t) no está definida en parte de [0, t].' });
+  } else {
+    iDyn.push({ c:'h', t:'Resultado en t = ' + tc + ' s' }, { c:'ln ind res', t:'s(' + tc + ') = s₀ + ∫₀ᵗ v dt ≈ ' + f4(sCur) + ' m' });
+  }
+  $('dSteps').innerHTML = '<div class="t">⚡ Derivada: de v(t) a a(t)</div>' + lines(m.dStatic.concat(dDyn, m.dTau));
+  $('iSteps').innerHTML = '<div class="t">📈 Integral: de v(t) a s(t)</div>' + lines(m.iStatic.concat(iDyn, m.iTau));
+
+  // Gráficas
+  const pts = (f, t1, n) => { const ts = [], vs = []; for (let i = 0; i <= n; i++) { const t = t1 * i / n; ts.push(t); vs.push(f(t)); } return { t:ts, y:vs }; };
+  const nA = Math.max(2, Math.ceil(200 * tCur / m.tMax));
+  const aV = pts(m.V, tCur, nA), aA = pts(m.A, tCur, nA);
+  const common = { t:m.T, xmax:m.tMax, tCur, tIni:m.tIni, tFin:m.tFin };
+
+  drawChart('plotS', Object.assign({}, common, { y:m.S, yCur:sCur, color:C_S, dot:'#ef4444',
+    title:'Posición s(t) = s₀ + ∫v dt  ·  función acumulada ∫f', ytitle:'s (m)', label:'s', unit:'m',
+    tangent:{ m:vCur, color:C_V }, bracket:{ y0:m.s0, y1:sCur, color:C_S, label:'Δs = ' + f2(dS) + ' m' } }));
+  drawChart('plotV', Object.assign({}, common, { y:m.Vs, yCur:vCur, color:C_V, dot:'#ef4444',
+    title:'Velocidad v(t)  ·  función original f', ytitle:'v (m/s)', label:'v', unit:'m/s',
+    area:{ t:aV.t, y:aV.y, fill:'rgba(22,88,123,0.28)' }, outline:{ t:m.shT, y:m.shV },
+    tangent:{ m:aCur, color:C_A }, bracket:{ y0:v0, y1:vCur, color:C_V, label:'Δv = ' + f2(dV) + ' m/s' } }));
+  drawChart('plotA', Object.assign({}, common, { y:m.As, yCur:aCur, color:C_A, dot:C_S,
+    title:'Aceleración a(t) = v′(t)  ·  tasa de cambio f′', ytitle:'a (m/s²)', label:'a', unit:'m/s²',
+    area:{ t:aA.t, y:aA.y, fill:'rgba(46,139,87,0.28)' } }));
+
+  $('capS').innerHTML =
+    sw(C_V, 'ln', 'Tangente: su pendiente es <b>v(t) = ' + f2(vCur) + ' m/s</b> (la altura de la gráfica verde)') +
+    sw(C_S, 'bar', 'Altura acumulada <b>Δs = s(t) − s₀ = ' + f2(dS) + ' m</b>');
+  $('capV').innerHTML =
+    sw(C_A, 'ln', 'Tangente: su pendiente es <b>a(t) = ' + f2(aCur) + ' m/s²</b> (la altura de la gráfica roja)') +
+    sw('rgba(22,88,123,.4)', '', 'Área bajo v de 0 a t = <b>' + f2(areaV) + ' m</b> = Δs (altura azul de s)') +
+    sw(C_V, 'bar', '<b>Δv = ' + f2(dV) + ' m/s</b>') +
+    (m.tau2 > m.tau1 ? sw(C_S, 'out', 'Intervalo [τ₁, τ₂]: Δs = <b>' + f2(m.disp) + ' m</b>') : '');
+  $('capA').innerHTML =
+    sw('rgba(46,139,87,.4)', '', 'Área bajo a de 0 a t = <b>' + f2(areaA) + ' m/s</b> = Δv (altura verde de v)') +
+    sw(C_A, 'bar', 'Valor <b>a(t) = ' + f2(aCur) + ' m/s²</b>');
+
+  // Interpretación en el contexto
+  const sub = m.subject, kmh = vCur * 3.6;
+  const vTxt = Math.abs(vCur) < 1e-9 ? `${cap(sub)} está detenido en este instante.`
+    : vCur > 0 ? `${cap(sub)} avanza a ${f2(vCur)} m/s (≈ ${f1(kmh)} km/h).`
+    : `${cap(sub)} retrocede a ${f2(-vCur)} m/s (≈ ${f1(-kmh)} km/h); el signo negativo indica sentido contrario.`;
+  const aTxt = Math.abs(aCur) < 1e-6
+    ? `a = 0: la velocidad no cambia en este instante. Si a cambia de signo aquí, v tiene un máximo o un mínimo.`
+    : `a = ${sg2(aCur)} m/s²: cada segundo la velocidad ${aCur > 0 ? 'aumenta' : 'disminuye'} ${f2(Math.abs(aCur))} m/s. ` +
+      (Math.abs(vCur) < 1e-9 ? '' : vCur * aCur > 0 ? `Como v y a tienen el mismo signo, ${sub} <b>acelera</b> (su rapidez aumenta).` : `Como v y a tienen signos opuestos, ${sub} <b>frena</b> (su rapidez disminuye).`);
+  const dist = m.model && m.model.distance;
+  const sTxt = `s = ${f2(sCur)} m: ${dist ? 'distancia recorrida desde el inicio' : 'posición'}. Es s₀ + el área bajo v(t) entre 0 y ${tc} s = ${f2(m.s0)} + ${f2(areaV)}.`;
+  $('interp').innerHTML = '<h2 class="serif">📖 Interpretación en t = ' + tc + ' s</h2>' +
+    `<p><span class="pill" style="background:${C_V}">Función original v(t)</span>${vTxt}</p>` +
+    `<p><span class="pill" style="background:${C_A}">Derivada a(t) = v′(t)</span>${aTxt} Geométricamente es la <b>pendiente de la recta tangente</b> a v(t) en este punto.</p>` +
+    `<p><span class="pill" style="background:${C_S}">Integral s(t)</span>${sTxt} Geométricamente es el <b>área acumulada</b> bajo v(t).</p>` +
+    '<p><b>Relación entre las tres gráficas:</b> la pendiente de s(t) es v(t) y la pendiente de v(t) es a(t) (derivar = pendiente). A la inversa, el área bajo a(t) es el cambio de v(t) y el área bajo v(t) es el cambio de s(t) (integrar = área acumulada). Por eso, cuando a(t) cruza el cero, v(t) tiene su máximo o mínimo, y cuando v(t) es cero, la tangente de s(t) es horizontal.</p>';
+}
+
+function generate() { if (analyze()) render(); }
+
+/* =====================================================================
+   5. EVENTOS, REPRODUCCIÓN Y DESCARGA
+   ===================================================================== */
+function stopPlay() { playing = false; cancelAnimationFrame(raf); $('play').textContent = '▶ Reproducir'; }
+function frame(ts) {
+  if (!playing || !M) return;
+  const dtSec = Math.min((ts - lastTs) / 1000, 0.1); lastTs = ts;
+  const dur = Math.min(Math.max(M.tFin - M.tIni, 3), 10);          // la animación dura entre 3 y 10 s
+  cur += (M.tFin - M.tIni) / dur * dtSec;
+  if (cur >= M.tFin) { cur = M.tFin; render(); stopPlay(); return; }
+  render();
+  raf = requestAnimationFrame(frame);
+}
+$('play').addEventListener('click', () => {
+  if (playing) { stopPlay(); return; }
+  if (!M || M.tFin <= M.tIni) return;
+  if (cur < M.tIni || cur >= M.tFin - 1e-9) cur = M.tIni;
+  playing = true; $('play').textContent = '⏸ Pausar';
+  lastTs = performance.now(); raf = requestAnimationFrame(frame);
+});
+
+$('model').addEventListener('change', e => {
+  const mo = MODELS[e.target.value]; if (!mo) return;
+  stopPlay();
+  $('expr').value = mo.expr; $('s0').value = mo.s0; $('tmax').value = mo.tmax; $('tau1').value = mo.t1; $('tau2').value = mo.t2;
+  $('tini').value = 0; $('tfin').value = mo.tmax;
+  generate(); cur = M ? M.tIni : 0; render();
+});
+$('expr').addEventListener('input', () => {
+  const k = $('model').value;
+  if (MODELS[k] && MODELS[k].expr !== $('expr').value) $('model').value = 'custom';
+  generate();
+});
+['s0', 'tmax', 'tau1', 'tau2'].forEach(id => $(id).addEventListener('input', generate));
+['tini', 'tfin'].forEach(id => $(id).addEventListener('input', () => { stopPlay(); generate(); cur = M ? M.tIni : 0; render(); }));
+$('gen').addEventListener('click', generate);
+
+document.querySelectorAll('.dl').forEach(b => b.addEventListener('click', () => {
+  const svg = $(b.dataset.dl).querySelector('svg'); if (!svg) return;
+  const xml = new XMLSerializer().serializeToString(svg);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = 1600; c.height = 620;
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob(bl => { const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = b.dataset.name + '.png'; a.click(); });
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+}));
+
+$('model').value = 'bus';
+generate();
+cur = M ? M.tIni : 0;
+render();
+</script>
+</body>
+</html>
